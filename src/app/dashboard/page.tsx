@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Compass,
   FileText,
@@ -127,6 +127,30 @@ export default function DashboardPage() {
   const [agentResponse, setAgentResponse] = useState<string>("");
   const [selectedStepId, setSelectedStepId] = useState<string>("step_1");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [startIndex, setStartIndex] = useState(0);
+
+  const SUGGESTIONS = [
+    "ঢাকার মধ্যে একটি ই-কমার্স ও ক্লোথিং ব্র্যান্ড",
+    "সাভারে ডেইরি ও কৃষি ফার্মিং",
+    "আইটি ও সফটওয়্যার কনসালটেন্সি",
+    "অর্গানিক গ্রোসারি ই-কমার্স",
+    "ঢাকার প্রিমিয়াম রেস্টুরেন্ট ও ক্যাফে",
+    "থার্ড-পার্টি লজিস্টিকস ও হোম ডেলিভারি",
+    "একটি অনলাইন এডুকেশন প্ল্যাটফর্ম",
+    "একটি বিউটি সেলুন ও চেইন লাউঞ্জ",
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStartIndex((prev) => (prev + 1) % SUGGESTIONS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const visibleSuggestions = [];
+  for (let i = 0; i < 4; i++) {
+    visibleSuggestions.push(SUGGESTIONS[(startIndex + i) % SUGGESTIONS.length]);
+  }
 
   // Local state representing the 10 venture steps
   const [steps, setSteps] = useState<PipelineStep[]>([
@@ -396,13 +420,13 @@ export default function DashboardPage() {
           )}
 
           {/* Suggestions */}
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {["ঢাকার মধ্যে একটি ই-কমার্স ও ক্লোথিং ব্র্যান্ড", "সাভারে ডেইরি ও কৃষি ফার্মিং", "আইটি ও সফটওয়্যার কনসালটেন্সি"].map((suggestion) => (
+          <div className="mt-4 flex flex-wrap justify-center gap-2 min-h-[38px] transition-all duration-300">
+            {visibleSuggestions.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => setSearchQuery(`আমি ${suggestion} শুরু করতে চাই`)}
-                className="text-xs text-slate-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg px-3 py-1.5 transition-all duration-150"
+                className="text-xs text-slate-400 hover:text-white hover:border-violet-500/30 bg-white/[0.02] hover:bg-violet-500/5 border border-white/5 rounded-lg px-3 py-1.5 transition-all duration-300 shadow-sm hover:shadow-[0_0_10px_rgba(139,92,246,0.1)] active:scale-95"
               >
                 {suggestion}
               </button>
@@ -457,8 +481,16 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={step.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedStepId(step.id)}
-                    className={`relative rounded-2xl bg-white/[0.02] border p-5 cursor-pointer backdrop-blur-sm transition-all duration-300 transform hover:scale-[1.01] select-none ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedStepId(step.id);
+                      }
+                    }}
+                    className={`relative rounded-2xl bg-white/[0.02] border p-5 cursor-pointer backdrop-blur-sm transition-all duration-300 transform hover:scale-[1.01] select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                       isSelected
                         ? "border-violet-500/50 bg-white/[0.04] shadow-[0_0_30px_rgba(139,92,246,0.1)]"
                         : style.border

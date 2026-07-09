@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Compass,
   FileText,
@@ -48,6 +48,30 @@ export default function GorixDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedStepId, setSelectedStepId] = useState<string>("step_1");
+  const [startIndex, setStartIndex] = useState(0);
+
+  const SUGGESTIONS = [
+    "অর্গানিক ফুড শপ",
+    "সফ্টওয়্যার এজেন্সি",
+    "অনলাইন বুটিক হাউজ",
+    "রেস্টুরেন্ট ও ক্যাফে",
+    "লজিস্টিকস ও ডেলিভারি",
+    "এডুটেক স্টার্টআপ",
+    "ডেইরি ও এগ্রো ফার্ম",
+    "লাইফস্টাইল ও সেলুন",
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStartIndex((prev) => (prev + 1) % SUGGESTIONS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const visibleSuggestions = [];
+  for (let i = 0; i < 4; i++) {
+    visibleSuggestions.push(SUGGESTIONS[(startIndex + i) % SUGGESTIONS.length]);
+  }
 
   // Local state representing the 10 venture steps
   const [steps, setSteps] = useState<PipelineStep[]>([
@@ -363,13 +387,13 @@ export default function GorixDashboard() {
           </form>
 
           {/* Suggestions */}
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {["অর্গানিক ফুড শপ", "সফ্টওয়্যার এজেন্সি", "অনলাইন বুটিক হাউজ"].map((suggestion) => (
+          <div className="mt-4 flex flex-wrap justify-center gap-2 min-h-[38px] transition-all duration-300">
+            {visibleSuggestions.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => setSearchQuery(`আমি একটি ${suggestion} শুরু করতে চাই`)}
-                className="text-xs text-slate-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 rounded-lg px-3 py-1.5 transition-all duration-150"
+                className="text-xs text-slate-400 hover:text-white hover:border-violet-500/30 bg-white/[0.02] hover:bg-violet-500/5 border border-white/5 rounded-lg px-3 py-1.5 transition-all duration-300 shadow-sm hover:shadow-[0_0_10px_rgba(139,92,246,0.1)] active:scale-95"
               >
                 {suggestion}
               </button>
@@ -427,8 +451,16 @@ export default function GorixDashboard() {
                 return (
                   <div
                     key={step.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedStepId(step.id)}
-                    className={`relative rounded-2xl bg-white/[0.02] border p-5 cursor-pointer backdrop-blur-sm transition-all duration-300 transform hover:scale-[1.01] select-none ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedStepId(step.id);
+                      }
+                    }}
+                    className={`relative rounded-2xl bg-white/[0.02] border p-5 cursor-pointer backdrop-blur-sm transition-all duration-300 transform hover:scale-[1.01] select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                       isSelected
                         ? "border-violet-500/50 bg-white/[0.04] shadow-[0_0_30px_rgba(139,92,246,0.1)]"
                         : style.border
@@ -557,9 +589,12 @@ export default function GorixDashboard() {
               <div className="mt-6 border-t border-white/5 pt-4 text-center">
                 <p className="text-[10px] text-slate-500">
                   বাংলাদেশী আইন বা ফর্ম পূরণে সমস্যা হচ্ছে?{" "}
-                  <span className="text-violet-400 cursor-pointer hover:underline">
+                  <button
+                    type="button"
+                    className="text-violet-400 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 rounded px-1 bg-transparent border-0"
+                  >
                     হেল্পডেস্ক সাপোর্ট নিন
-                  </span>
+                  </button>
                 </p>
               </div>
             </div>
