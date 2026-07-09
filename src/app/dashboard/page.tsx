@@ -36,6 +36,91 @@ export interface PipelineStep {
   icon: React.ComponentType<any>;
 }
 
+// Custom Premium Markdown Parser for Gorix OS
+function parseInlineFormatting(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-bold text-slate-100 bg-violet-950/30 px-1.5 py-0.5 rounded border border-violet-500/10">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={i} className="text-violet-300 font-medium not-italic">{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text: string) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return lines.map((line, index) => {
+    const trimmedLine = line.trim();
+
+    // 1. Headers
+    if (trimmedLine.startsWith("####")) {
+      return (
+        <h4 key={index} className="text-xs font-bold text-violet-400 mt-5 mb-2 flex items-center space-x-1.5 font-mono uppercase tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+          <span>{trimmedLine.replace("####", "").replace(/\*\*/g, "").trim()}</span>
+        </h4>
+      );
+    }
+    if (trimmedLine.startsWith("###")) {
+      return (
+        <h3 key={index} className="text-sm font-extrabold text-white mt-8 mb-4 border-b border-white/5 pb-2 tracking-wide">
+          {trimmedLine.replace("###", "").replace(/\*\*/g, "").trim()}
+        </h3>
+      );
+    }
+    if (trimmedLine.startsWith("##")) {
+      return (
+        <h2 key={index} className="text-base font-bold text-white mt-10 mb-5">
+          {trimmedLine.replace("##", "").replace(/\*\*/g, "").trim()}
+        </h2>
+      );
+    }
+    if (trimmedLine.startsWith("#")) {
+      return (
+        <h1 key={index} className="text-lg font-extrabold text-white mt-12 mb-6">
+          {trimmedLine.replace("#", "").replace(/\*\*/g, "").trim()}
+        </h1>
+      );
+    }
+
+    // 2. Unordered lists
+    if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+      const content = trimmedLine.replace(/^[\-\*]\s+/, "");
+      return (
+        <div key={index} className="pl-4 my-1 flex items-start space-x-2 text-slate-300 text-xs leading-relaxed">
+          <span className="text-violet-400 mt-1 select-none">•</span>
+          <div className="flex-1">{parseInlineFormatting(content)}</div>
+        </div>
+      );
+    }
+
+    // 3. Divider lines
+    if (trimmedLine === "---") {
+      return <hr key={index} className="border-white/5 my-6" />;
+    }
+
+    // 4. Empty paragraph
+    if (trimmedLine === "") {
+      return <div key={index} className="h-3" />;
+    }
+
+    // 5. Standard paragraph
+    return (
+      <p key={index} className="text-slate-300 my-2 text-xs leading-relaxed">
+        {parseInlineFormatting(line)}
+      </p>
+    );
+  });
+}
+
 export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -230,9 +315,8 @@ export default function DashboardPage() {
         {/* Top Navbar */}
         <header className="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
           <div className="flex items-center space-x-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-              <Sparkles className="w-5 h-5 text-white" />
-              <div className="absolute inset-0 rounded-xl border border-white/20 animate-pulse" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(139,92,246,0.2)] border border-white/10 bg-black/40">
+              <img src="/logo.png" alt="Gorix OS Logo" className="w-full h-full object-cover scale-[1.4]" />
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-violet-400 bg-clip-text text-transparent">
@@ -432,8 +516,8 @@ export default function DashboardPage() {
                   <div className="text-[10px] font-mono text-violet-400 mb-4 tracking-wider uppercase">
                     PROVEN BLUEPRINT GENERATED SUCCESSFULLY
                   </div>
-                  <div className="prose prose-invert max-w-none text-xs leading-relaxed text-slate-300 whitespace-pre-wrap flex-1 overflow-y-auto max-h-[550px] pr-2 scrollbar-thin">
-                    {agentResponse}
+                  <div className="flex-1 overflow-y-auto max-h-[550px] pr-2 scrollbar-thin space-y-1 text-slate-300">
+                    {renderMarkdown(agentResponse)}
                   </div>
                   
                   <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
@@ -449,7 +533,9 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
-                  <Sparkles className="w-8 h-8 text-violet-500/55" />
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/5 bg-white/[0.01] mb-2 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.05)]">
+                    <img src="/logo.png" alt="Gorix OS Symbol" className="w-full h-full object-cover scale-[1.4]" />
+                  </div>
                   <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
                     কোনো রোডম্যাপ পাওয়া যায়নি। অনুসন্ধান বক্সে আপনার ব্যবসার ধারণা লিখে "রোডম্যাপ তৈরি করুন" বাটনে ক্লিক করুন।
                   </p>

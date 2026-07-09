@@ -289,9 +289,8 @@ export default function GorixDashboard() {
         {/* Top Navbar */}
         <header className="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
           <div className="flex items-center space-x-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-              <Sparkles className="w-5 h-5 text-white" />
-              <div className="absolute inset-0 rounded-xl border border-white/20 animate-pulse" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden shadow-[0_0_15px_rgba(139,92,246,0.2)] border border-white/10 bg-black/40">
+              <img src="/logo.png" alt="Gorix OS Logo" className="w-full h-full object-cover scale-[1.4]" />
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-violet-400 bg-clip-text text-transparent">
