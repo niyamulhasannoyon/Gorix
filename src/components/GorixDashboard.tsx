@@ -260,6 +260,39 @@ export default function GorixDashboard() {
     },
   ]);
 
+  // Load steps from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("gorix_venture_steps");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSteps((prev) =>
+            prev.map((origStep) => {
+              const matched = parsed.find((p: any) => p.id === origStep.id);
+              if (matched) {
+                return { ...origStep, status: matched.status };
+              }
+              return origStep;
+            })
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load steps from localStorage", e);
+      }
+    }
+  }, []);
+
+  // Save steps to localStorage helper
+  const saveStepsToStorage = (updatedSteps: PipelineStep[]) => {
+    try {
+      const serializable = updatedSteps.map((s) => ({ id: s.id, status: s.status }));
+      localStorage.setItem("gorix_venture_steps", JSON.stringify(serializable));
+    } catch (e) {
+      console.error("Failed to save steps to localStorage", e);
+    }
+  };
+
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -268,33 +301,59 @@ export default function GorixDashboard() {
     // Simulate multi-agent processing animation
     setTimeout(() => {
       setIsGenerating(false);
-      // Randomize state progress to demonstrate update capabilities
-      setSteps((prev) =>
-        prev.map((step, idx) => {
-          if (idx === 0) return { ...step, status: "COMPLETED" };
-          if (idx === 1) return { ...step, status: "COMPLETED" };
-          if (idx === 2) return { ...step, status: "IN_PROGRESS" };
-          return { ...step, status: "PENDING" };
-        })
-      );
+      setSteps((prev) => {
+        const nextSteps = prev.map((step, idx) => {
+          if (idx === 0) return { ...step, status: "COMPLETED" as StepStatus };
+          if (idx === 1) return { ...step, status: "COMPLETED" as StepStatus };
+          if (idx === 2) return { ...step, status: "IN_PROGRESS" as StepStatus };
+          return { ...step, status: "PENDING" as StepStatus };
+        });
+        saveStepsToStorage(nextSteps);
+        return nextSteps;
+      });
       setSelectedStepId("step_3"); // Focus on the next active item
     }, 2800);
   };
 
-  const handleToggleStatus = (id: string) => {
-    setSteps((prev) =>
-      prev.map((step) => {
-        if (step.id === id) {
-          const nextStatusMap: Record<StepStatus, StepStatus> = {
-            PENDING: "IN_PROGRESS",
-            IN_PROGRESS: "COMPLETED",
-            COMPLETED: "PENDING",
-          };
-          return { ...step, status: nextStatusMap[step.status] };
-        }
-        return step;
-      })
-    );
+  const handleToggleStatus = async (id: string) => {
+    // 1. Optimistic Update (Immediate Local State)
+    const originalSteps = [...steps];
+    
+    const updated = steps.map((step) => {
+      if (step.id === id) {
+        const nextStatusMap: Record<StepStatus, StepStatus> = {
+          PENDING: "IN_PROGRESS",
+          IN_PROGRESS: "COMPLETED",
+          COMPLETED: "PENDING",
+        };
+        return { ...step, status: nextStatusMap[step.status] };
+      }
+      return step;
+    });
+    
+    setSteps(updated);
+    saveStepsToStorage(updated);
+
+    // 2. Simulated DB sync endpoint invocation with rollback on fail
+    try {
+      await new Promise<void>((resolve, reject) => {
+        // 5% chance of simulated network error
+        setTimeout(() => {
+          if (Math.random() < 0.05) {
+            reject(new Error("Network connection error"));
+          } else {
+            resolve();
+          }
+        }, 600);
+      });
+      console.log(`Step ${id} status successfully synced to cloud database.`);
+    } catch (err) {
+      console.error("Failed to sync step status, rolling back state.", err);
+      // Rollback to original state on failure
+      setSteps(originalSteps);
+      saveStepsToStorage(originalSteps);
+      alert("নেটওয়ার্ক ত্রুটির কারণে প্রজেক্ট আপডেট সিঙ্ক করা যায়নি। আবার চেষ্টা করুন। (Network Sync Error: Rollback applied)");
+    }
   };
 
   const activeStep = steps.find((s) => s.id === selectedStepId) || steps[0];
@@ -360,6 +419,7 @@ export default function GorixDashboard() {
                 </div>
                 <input
                   type="text"
+                  maxLength={500}
                   placeholder="আমি একটি ক্লোথিং ব্র্যান্ড বা রিসেলার বিজনেস শুরু করতে চাই..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -383,6 +443,13 @@ export default function GorixDashboard() {
                   )}
                 </button>
               </div>
+            </div>
+            {/* Character counter & Helper text */}
+            <div className="mt-1.5 flex justify-between items-center px-2 text-[10px] font-mono select-none">
+              <span className="text-slate-500">সর্বোচ্চ ৫০০ অক্ষর / Max 500 chars</span>
+              <span className={searchQuery.length >= 450 ? "text-amber-400 font-semibold" : "text-slate-500"}>
+                {searchQuery.length} / 500
+              </span>
             </div>
           </form>
 
@@ -596,6 +663,11 @@ export default function GorixDashboard() {
                     হেল্পডেস্ক সাপোর্ট নিন
                   </button>
                 </p>
+              </div>
+
+              {/* Legal Disclaimer */}
+              <div className="mt-5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[10px] text-amber-300/80 leading-relaxed font-sans text-left select-none">
+                <strong>সতর্কতা / Disclaimer:</strong> এটি একটি এআই-জেনারেটেড রোডম্যাপ। যেকোনো কর, আইনি বা আর্থিক সিদ্ধান্ত গ্রহণের পূর্বে দয়া করে সংশ্লিষ্ট সরকারি দপ্তর (RJSC, NBR, সিটি কর্পোরেশন) থেকে অফিসিয়াল তথ্য নিশ্চিত করুন।
               </div>
             </div>
           </div>
