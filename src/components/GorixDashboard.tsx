@@ -19,6 +19,8 @@ import {
   Clock,
   ExternalLink,
   Zap,
+  Copy,
+  Check,
 } from "lucide-react";
 
 // Types
@@ -135,7 +137,44 @@ export default function GorixDashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedStepId, setSelectedStepId] = useState<string>("step_1");
   const [errorMsg, setErrorMsg] = useState("");
+  const [activeTab, setActiveTab] = useState<"step" | "blueprint">("step");
+  const [copiedToast, setCopiedToast] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
+
+  const compileFullBlueprintMarkdown = () => {
+    return steps
+      .map(
+        (s) => `## ধাপ ০${s.stepNumber}: ${s.titleBn} (${s.titleEn})
+**সময়কাল:** ${s.estimatedTime}
+**ফি / আনুমানিক খরচ:** ${s.details.fees}
+
+${s.fullDescBn}
+
+### প্রয়োজনীয় নথিপত্র:
+${s.details.requirements.map((r) => `- ${r}`).join("\n")}
+`
+      )
+      .join("\n\n---\n\n");
+  };
+
+  const handleCopy = (activeStep: PipelineStep) => {
+    const textToCopy =
+      activeTab === "step"
+        ? `## ধাপ ০${activeStep.stepNumber}: ${activeStep.titleBn} (${activeStep.titleEn})
+**সময়কাল:** ${activeStep.estimatedTime}
+**ফি / আনুমানিক খরচ:** ${activeStep.details.fees}
+
+${activeStep.fullDescBn}
+
+### প্রয়োজনীয় নথিপত্র:
+${activeStep.details.requirements.map((r) => `- ${r}`).join("\n")}`
+        : compileFullBlueprintMarkdown();
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 2000);
+    });
+  };
 
   const SUGGESTIONS = [
     "অর্গানিক ফুড শপ",
@@ -721,110 +760,206 @@ export default function GorixDashboard() {
             </div>
           </div>
 
-          {/* Action / Detail Drawer (Right panel) */}
-          <div className="lg:col-span-4 lg:sticky lg:top-8">
-            <h2 className="text-lg font-bold text-white mb-6 flex items-center space-x-2">
-              <span>ধাপের বিস্তারিত / Execution Hub</span>
-            </h2>
-
-            <div className="rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl p-6 shadow-2xl relative overflow-hidden">
-              {/* Outer decorative line glow */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 rounded-full blur-2xl pointer-events-none" />
-
-              {/* Top Meta */}
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-xs font-mono text-violet-400 tracking-wider">
-                  STEP 0{activeStep.stepNumber} DETAILS
-                </span>
-                <span className="text-xs text-slate-400 flex items-center space-x-1">
-                  <Clock className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{activeStep.estimatedTime}</span>
-                </span>
-              </div>
-
-              {/* Title & Desc */}
-              <h3 className="text-xl font-bold text-white mb-2">{activeStep.titleBn}</h3>
-              <div className="text-[13px] text-slate-300 leading-relaxed mb-6 border-b border-white/5 pb-6 overflow-y-auto max-h-[350px] scrollbar-thin">
-                {renderMarkdown(activeStep.fullDescBn)}
-              </div>
-
-              {/* Required Documents / Items */}
-              <div className="mb-6">
-                <h4 className="text-xs font-mono tracking-wider text-slate-400 uppercase mb-3 flex items-center space-x-1.5">
-                  <FileText className="w-3.5 h-3.5 text-violet-400" />
-                  <span>প্রয়োজনীয় নথিপত্র / Required Files</span>
-                </h4>
-                <ul className="space-y-2">
-                  {activeStep.details.requirements.map((req, index) => (
-                    <li key={index} className="text-xs text-slate-300 flex items-start space-x-2">
-                      <span className="text-violet-500 mt-0.5">•</span>
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Estimated Fees */}
-              <div className="mb-6 p-3.5 rounded-xl bg-white/[0.01] border border-white/5 flex justify-between items-center">
-                <span className="text-xs text-slate-400">সরকারি/আনুমানিক খরচ:</span>
-                <span className="text-xs font-bold text-emerald-400 font-mono">
-                  {activeStep.details.fees}
-                </span>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="space-y-3">
-                {activeStep.details.actionUrl ? (
-                  <a
-                    href={activeStep.details.actionUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200"
-                  >
-                    <span>{activeStep.details.actionLabel}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200"
-                  >
-                    <span>{activeStep.details.actionLabel}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => handleToggleStatus(activeStep.id)}
-                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200 shadow-md shadow-violet-950/20"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {activeStep.status === "COMPLETED"
-                      ? "ধাপটি অসম্পূর্ণ চিহ্নিত করুন"
-                      : "ধাপটি সম্পন্ন চিহ্নিত করুন"}
-                  </span>
-                </button>
-              </div>
-
-              {/* Help & Support */}
-              <div className="mt-6 border-t border-white/5 pt-4 text-center">
-                <p className="text-[10px] text-slate-500">
-                  বাংলাদেশী আইন বা ফর্ম পূরণে সমস্যা হচ্ছে?{" "}
-                  <button
-                    type="button"
-                    className="text-violet-400 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 rounded px-1 bg-transparent border-0"
-                  >
-                    হেল্পডেস্ক সাপোর্ট নিন
-                  </button>
-                </p>
-              </div>
-
-              {/* Legal Disclaimer */}
-              <div className="mt-5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[10px] text-amber-300/80 leading-relaxed font-sans text-left select-none">
-                <strong>সতর্কতা / Disclaimer:</strong> এটি একটি এআই-জেনারেটেড রোডম্যাপ। যেকোনো কর, আইনি বা আর্থিক সিদ্ধান্ত গ্রহণের পূর্বে দয়া করে সংশ্লিষ্ট সরকারি দপ্তর (RJSC, NBR, সিটি কর্পোরেশন) থেকে অফিসিয়াল তথ্য নিশ্চিত করুন।
-              </div>
+          {/* Action / Detail Drawer (Right panel) - Claude-Style Artifact Workspace */}
+          <div className="lg:col-span-4 lg:sticky lg:top-8 flex flex-col min-h-[750px] relative">
+            {/* Artifact Outer Header */}
+            <div className="flex justify-between items-center mb-4 select-none">
+              <h2 className="text-sm font-bold text-white flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
+                <span>উদ্যোগ ওয়ার্কস্পেস / Artifact Hub</span>
+              </h2>
+              <span className="text-[10px] font-mono font-semibold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                preview
+              </span>
             </div>
+
+            {/* Claude-Style Artifact Canvas */}
+            <div className="flex-1 rounded-2xl bg-[#0F1424] border border-white/10 shadow-2xl relative overflow-hidden flex flex-col p-[2px]">
+              {/* Decorative top gradient line */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-600 via-indigo-500 to-emerald-500" />
+              <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/5 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Claude Tabs Header */}
+              <div className="flex justify-between items-center bg-black/20 border-b border-white/5 px-4 py-3 select-none relative z-10">
+                {/* Left: Doc details */}
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-violet-400" />
+                  <span className="text-xs font-mono font-bold text-slate-200">
+                    {activeTab === "step" ? `STEP_0${activeStep.stepNumber}_GUIDE.md` : "COMPLETE_BLUEPRINT.md"}
+                  </span>
+                </div>
+
+                {/* Right: Tab selectors and Copy action */}
+                <div className="flex items-center space-x-3">
+                  <div className="flex bg-white/5 border border-white/5 rounded-lg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("step")}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        activeTab === "step"
+                          ? "bg-violet-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      ধাপের তথ্য
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("blueprint")}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        activeTab === "blueprint"
+                          ? "bg-violet-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      ব্লুপ্রিন্ট
+                    </button>
+                  </div>
+
+                  {/* Copy Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(activeStep)}
+                    title="কপি করুন / Copy to clipboard"
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    {copiedToast ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Artifact Body Container */}
+              <div className="flex-1 overflow-y-auto p-5 scrollbar-thin flex flex-col justify-between relative z-10 h-[640px]">
+                
+                {/* Tab content rendering */}
+                <div className="flex-1">
+                  {activeTab === "step" ? (
+                    <div>
+                      {/* Step Metadata Header */}
+                      <div className="flex justify-between items-center mb-4 text-[10px] font-mono text-slate-400 border-b border-white/5 pb-2">
+                        <span className="text-violet-400 tracking-wider">0{activeStep.stepNumber} / 10 MODULE</span>
+                        <span className="flex items-center space-x-1">
+                          <Clock className="w-3 h-3 text-slate-500" />
+                          <span>{activeStep.estimatedTime}</span>
+                        </span>
+                      </div>
+
+                      {/* Title & Desc */}
+                      <h3 className="text-lg font-bold text-white mb-3">{activeStep.titleBn}</h3>
+                      <div className="text-xs text-slate-300 leading-relaxed space-y-2 mb-6">
+                        {renderMarkdown(activeStep.fullDescBn)}
+                      </div>
+
+                      {/* Requirements */}
+                      <div className="mb-6 border-t border-white/5 pt-4">
+                        <h4 className="text-xs font-mono tracking-wider text-slate-400 uppercase mb-3 flex items-center space-x-1.5">
+                          <FileText className="w-3.5 h-3.5 text-violet-400" />
+                          <span>প্রয়োজনীয় নথিপত্র / Requirements</span>
+                        </h4>
+                        <ul className="space-y-2">
+                          {activeStep.details.requirements.map((req, index) => (
+                            <li key={index} className="text-xs text-slate-300 flex items-start space-x-2">
+                              <span className="text-violet-500 mt-0.5">•</span>
+                              <span>{req}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Fees */}
+                      <div className="mb-6 p-3 rounded-xl bg-white/[0.01] border border-white/5 flex justify-between items-center select-none">
+                        <span className="text-xs text-slate-400">সরকারি / আনুমানিক খরচ:</span>
+                        <span className="text-xs font-bold text-emerald-400 font-mono">
+                          {activeStep.details.fees}
+                        </span>
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div className="space-y-3">
+                        {activeStep.details.actionUrl ? (
+                          <a
+                            href={activeStep.details.actionUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200"
+                          >
+                            <span>{activeStep.details.actionLabel}</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200"
+                          >
+                            <span>{activeStep.details.actionLabel}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(activeStep.id)}
+                          className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl py-3 px-4 text-xs font-bold flex items-center justify-center space-x-2 transition-all duration-200 shadow-md shadow-violet-950/20 cursor-pointer active:scale-95 border-0"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>
+                            {activeStep.status === "COMPLETED"
+                              ? "ধাপটি অসম্পূর্ণ চিহ্নিত করুন"
+                              : "ধাপটি সম্পন্ন চিহ্নিত করুন"}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Full Blueprint Report View */}
+                      <div className="flex justify-between items-center mb-4 text-[10px] font-mono text-slate-400 border-b border-white/5 pb-2">
+                        <span className="text-emerald-400 tracking-wider">FULL PROJECT REPORT</span>
+                        <span>১০ টি ধাপের রূপরেখা</span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-white mb-4">
+                        উদ্যোগের সামগ্রিক রোডম্যাপ / Full Venture Blueprint
+                      </h3>
+                      
+                      <div className="text-xs text-slate-300 space-y-4 max-h-[480px] overflow-y-auto pr-1 scrollbar-thin leading-relaxed">
+                        {renderMarkdown(compileFullBlueprintMarkdown())}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom static layout parts (disclaimer & helpdesk) */}
+                <div className="mt-8 pt-4 border-t border-white/5">
+                  {/* Helpdesk */}
+                  <div className="text-center mb-4 select-none">
+                    <p className="text-[10px] text-slate-500">
+                      বাংলাদেশী আইন বা ফর্ম পূরণে সমস্যা হচ্ছে?{" "}
+                      <button
+                        type="button"
+                        className="text-violet-400 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 rounded px-1 bg-transparent border-0"
+                      >
+                        হেল্পডেস্ক সাপোর্ট নিন
+                      </button>
+                    </p>
+                  </div>
+
+                  {/* Legal Disclaimer */}
+                  <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 text-[9px] text-amber-300/70 leading-relaxed font-sans text-left select-none">
+                    <strong>সতর্কতা / Disclaimer:</strong> এটি একটি এআই-জেনারেটেড রোডম্যাপ। যেকোনো কর, আইনি বা আর্থিক সিদ্ধান্ত গ্রহণের পূর্বে সংশ্লিষ্ট সরকারি দপ্তর (RJSC, NBR, সিটি কর্পোরেশন) থেকে অফিসিয়াল তথ্য নিশ্চিত করুন।
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Local Toast copied indicator */}
+            {copiedToast && (
+              <div className="absolute bottom-6 right-6 z-50 bg-emerald-950/90 border border-emerald-500/30 text-emerald-300 text-xs px-4 py-2.5 rounded-xl shadow-lg animate-fade-in flex items-center space-x-2 font-semibold">
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span>ক্লিপবোর্ডে কপি করা হয়েছে! (Copied to Clipboard)</span>
+              </div>
+            )}
           </div>
 
         </div>

@@ -132,7 +132,7 @@ export async function POST(request: Request) {
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "mistral-large-latest",
+          model: "mistral-small-latest",
           response_format: { type: "json_object" },
           messages: [
             {
@@ -143,10 +143,10 @@ Each step module must have:
 - stepNumber (integer 1-10)
 - titleBn (string, Bengali title of the step)
 - titleEn (string, English title of the step)
-- shortDescBn (string, short description in Bengali)
-- shortDescEn (string, short description in English)
-- fullDescBn (string, detailed breakdown in Bengali, explain the exact process, government portals, and details using markdown format)
-- fullDescEn (string, detailed breakdown in English)
+- shortDescBn (string, short description in Bengali, max 15 words)
+- shortDescEn (string, short description in English, max 15 words)
+- fullDescBn (string, detailed breakdown in Bengali, explain the exact process, government portals, and details using markdown format. Keep it concise, max 3-4 sentences)
+- fullDescEn (string, detailed breakdown in English, max 3 sentences)
 - requirements (array of strings, e.g. ["জাতীয় পরিচয়পত্র (NID)", "পাসপোর্ট সাইজ ছবি"])
 - fees (string, expected government fees / registration costs in BDT, e.g. "৳২,০০০")
 - estimatedTime (string, estimated duration, e.g. "৩-৫ দিন / 3-5 Days")
