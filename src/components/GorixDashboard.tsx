@@ -44,10 +44,97 @@ export interface PipelineStep {
   };
 }
 
+// Custom Premium Markdown Parser for Gorix OS
+function parseInlineFormatting(text: string) {
+  if (!text) return "";
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-bold text-slate-100 bg-violet-950/30 px-1.5 py-0.5 rounded border border-violet-500/10">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={i} className="text-violet-300 font-medium not-italic">{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text: string) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return lines.map((line, index) => {
+    const trimmedLine = line.trim();
+
+    // 1. Headers
+    if (trimmedLine.startsWith("####")) {
+      return (
+        <h4 key={index} className="text-xs font-bold text-violet-400 mt-5 mb-2 flex items-center space-x-1.5 font-mono uppercase tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+          <span>{trimmedLine.replace("####", "").replace(/\*\*/g, "").trim()}</span>
+        </h4>
+      );
+    }
+    if (trimmedLine.startsWith("###")) {
+      return (
+        <h3 key={index} className="text-sm font-extrabold text-white mt-6 mb-3 border-b border-white/5 pb-1.5 tracking-wide">
+          {trimmedLine.replace("###", "").replace(/\*\*/g, "").trim()}
+        </h3>
+      );
+    }
+    if (trimmedLine.startsWith("##")) {
+      return (
+        <h2 key={index} className="text-base font-bold text-white mt-8 mb-4">
+          {trimmedLine.replace("##", "").replace(/\*\*/g, "").trim()}
+        </h2>
+      );
+    }
+    if (trimmedLine.startsWith("#")) {
+      return (
+        <h1 key={index} className="text-lg font-extrabold text-white mt-10 mb-5">
+          {trimmedLine.replace("#", "").replace(/\*\*/g, "").trim()}
+        </h1>
+      );
+    }
+
+    // 2. Unordered lists
+    if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+      const content = trimmedLine.replace(/^[\-\*]\s+/, "");
+      return (
+        <div key={index} className="pl-4 my-1 flex items-start space-x-2 text-slate-300 text-xs leading-relaxed">
+          <span className="text-violet-400 mt-1 select-none">•</span>
+          <div className="flex-1">{parseInlineFormatting(content)}</div>
+        </div>
+      );
+    }
+
+    // 3. Divider lines
+    if (trimmedLine === "---") {
+      return <hr key={index} className="border-white/5 my-5" />;
+    }
+
+    // 4. Empty paragraph
+    if (trimmedLine === "") {
+      return <div key={index} className="h-2.5" />;
+    }
+
+    // 5. Standard paragraph
+    return (
+      <p key={index} className="text-slate-300 my-1.5 text-xs leading-relaxed">
+        {parseInlineFormatting(line)}
+      </p>
+    );
+  });
+}
+
 export default function GorixDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedStepId, setSelectedStepId] = useState<string>("step_1");
+  const [errorMsg, setErrorMsg] = useState("");
   const [startIndex, setStartIndex] = useState(0);
 
   const SUGGESTIONS = [
@@ -293,26 +380,87 @@ export default function GorixDashboard() {
     }
   };
 
-  const handleGenerate = (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsGenerating(true);
-    // Simulate multi-agent processing animation
-    setTimeout(() => {
-      setIsGenerating(false);
-      setSteps((prev) => {
-        const nextSteps = prev.map((step, idx) => {
-          if (idx === 0) return { ...step, status: "COMPLETED" as StepStatus };
-          if (idx === 1) return { ...step, status: "COMPLETED" as StepStatus };
-          if (idx === 2) return { ...step, status: "IN_PROGRESS" as StepStatus };
-          return { ...step, status: "PENDING" as StepStatus };
+    setErrorMsg("");
+
+    // Set first few steps as IN_PROGRESS to simulate action starting
+    setSteps((prev) => {
+      const nextSteps = prev.map((step, idx) => {
+        if (idx === 0) return { ...step, status: "IN_PROGRESS" as StepStatus };
+        return { ...step, status: "PENDING" as StepStatus };
+      });
+      saveStepsToStorage(nextSteps);
+      return nextSteps;
+    });
+
+    try {
+      const res = await fetch("/api/gorix", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rawIntent: searchQuery }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to generate blueprint");
+      }
+
+      const data = await res.json();
+      let parsedData;
+      try {
+        parsedData = JSON.parse(data.content);
+      } catch (err) {
+        console.error("Failed to parse API content as JSON", err);
+        throw new Error("এআই রেসপন্সটি সঠিক জেসন (JSON) ফরম্যাটে পাওয়া যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন। (Malformed AI Output)");
+      }
+
+      if (parsedData && Array.isArray(parsedData.steps) && parsedData.steps.length > 0) {
+        const icons = [Compass, FileText, Shield, Hash, Percent, Landmark, Palette, Code, Megaphone, CheckSquare];
+        const updatedSteps = parsedData.steps.map((item: any, idx: number) => {
+          return {
+            id: `step_${idx + 1}`,
+            stepNumber: item.stepNumber || idx + 1,
+            titleBn: item.titleBn || `ধাপ ০${idx + 1}`,
+            titleEn: item.titleEn || `Step 0${idx + 1}`,
+            shortDescBn: item.shortDescBn || "",
+            shortDescEn: item.shortDescEn || "",
+            fullDescBn: item.fullDescBn || "",
+            fullDescEn: item.fullDescEn || "",
+            status: (idx < 2 ? "COMPLETED" : idx === 2 ? "IN_PROGRESS" : "PENDING") as StepStatus,
+            estimatedTime: item.estimatedTime || "১ দিন / 1 Day",
+            icon: icons[idx] || Compass,
+            details: {
+              requirements: Array.isArray(item.requirements) ? item.requirements : [],
+              fees: item.fees || "ফ্রি (Gorix OS এর অন্তর্ভুক্ত)",
+              actionLabel: item.actionLabel || "বিস্তারিত দেখুন",
+              actionUrl: item.actionUrl || undefined
+            }
+          };
         });
+
+        setSteps(updatedSteps);
+        saveStepsToStorage(updatedSteps);
+        setSelectedStepId("step_3"); // Focus on the first active item
+      } else {
+        throw new Error("এআই রেসপন্সে কোনো রোডম্যাপ অবজেক্ট পাওয়া যায়নি।");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "একটি ত্রুটি ঘটেছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
+      setSteps((prev) => {
+        const nextSteps = prev.map((step) => ({ ...step, status: "PENDING" as StepStatus }));
         saveStepsToStorage(nextSteps);
         return nextSteps;
       });
-      setSelectedStepId("step_3"); // Focus on the next active item
-    }, 2800);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleToggleStatus = async (id: string) => {
@@ -453,6 +601,13 @@ export default function GorixDashboard() {
             </div>
           </form>
 
+          {/* Error Message */}
+          {errorMsg && (
+            <div className="mt-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold max-w-xl mx-auto text-center">
+              {errorMsg}
+            </div>
+          )}
+
           {/* Suggestions */}
           <div className="mt-4 flex flex-wrap justify-center gap-2 min-h-[38px] transition-all duration-300">
             {visibleSuggestions.map((suggestion) => (
@@ -589,9 +744,9 @@ export default function GorixDashboard() {
 
               {/* Title & Desc */}
               <h3 className="text-xl font-bold text-white mb-2">{activeStep.titleBn}</h3>
-              <p className="text-[13px] text-slate-300 leading-relaxed mb-6 border-b border-white/5 pb-6">
-                {activeStep.fullDescBn}
-              </p>
+              <div className="text-[13px] text-slate-300 leading-relaxed mb-6 border-b border-white/5 pb-6 overflow-y-auto max-h-[350px] scrollbar-thin">
+                {renderMarkdown(activeStep.fullDescBn)}
+              </div>
 
               {/* Required Documents / Items */}
               <div className="mb-6">

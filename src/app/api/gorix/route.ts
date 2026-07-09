@@ -133,12 +133,32 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           model: "mistral-large-latest",
+          response_format: { type: "json_object" },
           messages: [
             {
               role: "system",
               content: `You are the Gorix OS Multi-Agent Venture Builder. The user wants to start a business in Bangladesh.
-Generate an end-to-end actionable 10-step execution pipeline tailored for Bangladesh (including Trade License, e-TIN, bank account setup, etc. using BDT).
-Respond in a mix of clean Bengali and English, keeping the formatting extremely professional and detailed.`
+Generate a JSON object containing an array of exactly 10 step modules tailored for the user's business idea in Bangladesh.
+Each step module must have:
+- stepNumber (integer 1-10)
+- titleBn (string, Bengali title of the step)
+- titleEn (string, English title of the step)
+- shortDescBn (string, short description in Bengali)
+- shortDescEn (string, short description in English)
+- fullDescBn (string, detailed breakdown in Bengali, explain the exact process, government portals, and details using markdown format)
+- fullDescEn (string, detailed breakdown in English)
+- requirements (array of strings, e.g. ["জাতীয় পরিচয়পত্র (NID)", "পাসপোর্ট সাইজ ছবি"])
+- fees (string, expected government fees / registration costs in BDT, e.g. "৳২,০০০")
+- estimatedTime (string, estimated duration, e.g. "৩-৫ দিন / 3-5 Days")
+- actionLabel (string, action button text, e.g. "ট্রেড লাইসেন্স ফর্ম ডাউনলোড")
+- actionUrl (string, relevant government portal link, e.g. "http://www.roc.gov.bd/")
+
+Structure of JSON output:
+{
+  "steps": [
+    ...
+  ]
+}`
             },
             {
               role: "user",
