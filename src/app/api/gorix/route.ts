@@ -73,7 +73,9 @@ export async function POST(request: Request) {
     const normalizedKey = sanitizedIntent.toLowerCase().replace(/\s+/g, " ");
     const cachedResponse = cacheMap.get(normalizedKey);
     if (cachedResponse && now < cachedResponse.expiry) {
-      return NextResponse.json({ content: cachedResponse.content, cached: true });
+      const responseHeaders = new Headers();
+      responseHeaders.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+      return NextResponse.json({ content: cachedResponse.content, cached: true }, { headers: responseHeaders });
     }
 
     const apiKey = process.env.MISTRAL_API_KEY;
@@ -166,7 +168,9 @@ Respond in a mix of clean Bengali and English, keeping the formatting extremely 
       });
     }
 
-    return NextResponse.json({ content });
+    const responseHeaders = new Headers();
+    responseHeaders.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+    return NextResponse.json({ content }, { headers: responseHeaders });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Internal Server Error", details: error?.message || String(error) },
